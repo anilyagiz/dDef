@@ -1,0 +1,21 @@
+[package]
+name = "chrono_key"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]  
+borsh = "1.3.1" 
+borsh-derive = "1.3.1"      
+solana-program = "1.17.3"
+byteorder = "1.5.0"
+
+[dev-dependencies]
+solana-program = "1.17.3"
+solana-sdk = "1.17.3"
+borsh = "1.1.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+path = "lib.rs"
