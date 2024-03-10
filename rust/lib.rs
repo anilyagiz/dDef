@@ -1,5 +1,3 @@
-// lib.rs
-// Import necessary modules and traits from solana_program and other dependencies
 use borsh::{BorshDeserialize, BorshSerialize};
 use byteorder::{LittleEndian, ReadBytesExt};
 use solana_program::program_error::ProgramError;
@@ -9,30 +7,25 @@ use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, msg, pubkey::Pubkey,
 };
 
-// Default delay for critical function execution (e.g., here 1 hour, 30 seconds)
 const DEFAULT_DELAY_FOR_CRITICAL_FUNCTION: i64 = 30;
 
-// Entrypoint for the program
 entrypoint!(process_instruction);
 
-// State of the contract holding a list of queued functions
-#[derive(Clone, Debug, PartialEq, borsh_derive::BorshDeserialize, borsh_derive::BorshSerialize)]
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct ContractState {
     pub queued_functions: Vec<QueuedFunction>,
     pub delegate: Option<Pubkey>,
 }
 
-// Representation of a queued function for execution
-#[derive(Clone, Debug, PartialEq, borsh_derive::BorshDeserialize, borsh_derive::BorshSerialize)]
+#[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct QueuedFunction {
     pub function: CriticalFunction,
     pub execution_time: i64,
     pub cancelled: bool,
     pub initiator: Pubkey,
-    pub delegate: Option<Pubkey>, // Optional delegated authority
+    pub delegate: Option<Pubkey>,
 }
 
-// Enumeration representing instructions that the contract can handle
 #[derive(Debug)]
 pub enum Instruction {
     QueueCriticalFunction {
@@ -49,7 +42,6 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    // Function to unpack the instruction from the given byte array
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (&tag, rest) = input
             .split_first()
@@ -77,8 +69,7 @@ impl Instruction {
             }
             2 => Self::CheckExecution,
             3 => {
-                let delegate_pubkey = Pubkey::try_from(&rest[0..32])
-                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                let delegate_pubkey = Pubkey::new(&rest[0..32]);
                 Self::SetDelegate { delegate_pubkey }
             }
             _ => return Err(ProgramError::InvalidInstructionData),
@@ -86,7 +77,6 @@ impl Instruction {
     }
 }
 
-// Function to queue a critical function with the specified delay
 pub fn queue_function(
     accounts: &[AccountInfo],
     function: CriticalFunction,
@@ -123,7 +113,6 @@ pub fn queue_function(
     Ok(())
 }
 
-// Main function to process instructions sent to the program
 fn process_instruction(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -137,31 +126,25 @@ fn process_instruction(
             function,
             delay_in_seconds: _,
         } => {
-            // Determine the actual delay based on the type of critical function
             let actual_delay = match &function {
-                CriticalFunction::WithdrawAllFunds { .. } => DEFAULT_DELAY_FOR_CRITICAL_FUNCTION,
-                CriticalFunction::DeleteAccount { .. } => DEFAULT_DELAY_FOR_CRITICAL_FUNCTION,
+                CriticalFunction::WithdrawAllFunds { .. }
+                | CriticalFunction::DeleteAccount { .. } => DEFAULT_DELAY_FOR_CRITICAL_FUNCTION,
             };
-
             queue_function(accounts, function, actual_delay)?;
         }
         Instruction::CancelFunction { function_index } => {
-            // Handle the CancelFunction instruction
-            msg!(
-                "Received instruction to cancel function at index: {}",
-                function_index
-            );
+            msg!("Received instruction to cancel function at index: {}", function_index);
             let account = &accounts[0];
             let mut state: ContractState = ContractState::try_from_slice(&account.data.borrow())?;
             if function_index < state.queued_functions.len() {
-                let queued_func = &state.queued_functions[function_index];
+                let queued_func = &mut state.queued_functions[function_index];
                 if *account.key != queued_func.initiator
                     && Some(*account.key) != queued_func.delegate
                 {
                     msg!("Invalid instruction data: {:?}", instruction_data);
                     return Err(ProgramError::InvalidAccountData);
                 }
-                state.queued_functions[function_index].cancelled = true;
+                queued_func.cancelled = true;
                 state.serialize(&mut &mut account.data.borrow_mut()[..])?;
             } else {
                 msg!("Invalid instruction data: {:?}", function_index);
@@ -175,7 +158,6 @@ fn process_instruction(
             state.serialize(&mut &mut account.data.borrow_mut()[..])?;
         }
         Instruction::CheckExecution => {
-            // Check whether any queued function should be executed based on the current time
             let account = &accounts[0];
             let mut state: ContractState = ContractState::try_from_slice(&account.data.borrow())?;
             let clock = Clock::from_account_info(&accounts[1])?;
@@ -183,7 +165,7 @@ fn process_instruction(
 
             let mut functions_to_remove = Vec::new();
 
-            for (index, func) in state.queued_functions.iter().enumerate() {
+            for (index, func) in state.queued_functions.iter_mut().enumerate() {
                 msg!("Checking function at index: {}: {:?}", index, func);
                 if !func.cancelled && func.execution_time <= current_time {
                     match &func.function {
@@ -211,7 +193,6 @@ fn process_instruction(
                 }
             }
 
-            // Remove the executed functions in reverse order to avoid index shifting yarışmadan dolayı yetiştiremedik tam ya
             for index in functions_to_remove.iter().rev() {
                 state.queued_functions.remove(*index);
             }
