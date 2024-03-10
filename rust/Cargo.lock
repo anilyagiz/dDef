@@ -466,9 +466,8 @@ dependencies = [
 name = "chrono_key"
 version = "0.1.0"
 dependencies = [
- "borsh 0.9.3",
  "borsh 1.3.1",
- "borsh-derive 0.9.3",
+ "borsh-derive 1.3.1",
  "byteorder",
  "solana-program",
  "solana-sdk",

@@ -7,16 +7,20 @@ use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, msg, pubkey::Pubkey,
 };
 
+// Kritik işlev için varsayılan gecikme süresi
 const DEFAULT_DELAY_FOR_CRITICAL_FUNCTION: i64 = 30;
 
+// Giriş noktası makrosu
 entrypoint!(process_instruction);
 
+// Sözleşme durumu veri yapısı
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct ContractState {
     pub queued_functions: Vec<QueuedFunction>,
     pub delegate: Option<Pubkey>,
 }
 
+// Kuyrukta bekleyen işlev veri yapısı
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 pub struct QueuedFunction {
     pub function: CriticalFunction,
@@ -26,6 +30,7 @@ pub struct QueuedFunction {
     pub delegate: Option<Pubkey>,
 }
 
+// Talimat veri türü
 #[derive(Debug)]
 pub enum Instruction {
     QueueCriticalFunction {
@@ -42,6 +47,7 @@ pub enum Instruction {
 }
 
 impl Instruction {
+    // Talimatın baytlardan çözümlenmesi
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (&tag, rest) = input
             .split_first()
@@ -77,6 +83,7 @@ impl Instruction {
     }
 }
 
+// İşlev tanımları
 pub fn queue_function(
     accounts: &[AccountInfo],
     function: CriticalFunction,
@@ -113,6 +120,7 @@ pub fn queue_function(
     Ok(())
 }
 
+// Talimatların işlenmesi
 fn process_instruction(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
